@@ -65,8 +65,19 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\CV\Repositorios\Cplusplus\Others\RayTracingInAWeekWithUI\Include\src;C:\Users\CV\Repositorios\Cplusplus\Others\RayTracingInAWeekWithUI\Include\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\shaders;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\src;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NODEEDITOR_STATIC;NODE_EDITOR_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Link>
+      <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\src;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\headers;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
@@ -102,17 +113,29 @@
     <QtUic Include="RayTracingInAWeekWithUI.ui" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CameraParametersPanel.cpp" />
+    <ClCompile Include="Include\src\CameraParametersPanel.cpp" />
     <ClCompile Include="Include\src\main.cpp" />
     <ClCompile Include="Include\src\RayTracingInAWeekWithUI.cpp" />
-    <ClCompile Include="SceneElementsPanel.cpp" />
+    <ClCompile Include="Include\src\RenderViewport.cpp" />
+    <ClCompile Include="Include\src\SceneElementsPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Include\headers\RayTracingInAWeekWithUI.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CameraParametersPanel.h" />
-    <QtMoc Include="SceneElementsPanel.h" />
+    <ClInclude Include="Include\headers\CameraParametersPanel.h" />
+    <QtMoc Include="Include\headers\RenderViewport.h" />
+    <ClInclude Include="Include\headers\SceneElementsPanel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Include\shaders\PixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Include\shaders\VertexShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

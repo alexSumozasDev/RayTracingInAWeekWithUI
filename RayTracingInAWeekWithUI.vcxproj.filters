@@ -24,6 +24,9 @@
     <Filter Include="ExternalLibs">
       <UniqueIdentifier>{742fefd2-6017-4196-88c2-fdd5eecb5315}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{bd9b4fca-bdec-4614-bb7d-c68a402472bb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="RayTracingInAWeekWithUI.qrc">
@@ -40,10 +43,13 @@
     <ClCompile Include="Include\src\RayTracingInAWeekWithUI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CameraParametersPanel.cpp">
+    <ClCompile Include="Include\src\CameraParametersPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SceneElementsPanel.cpp">
+    <ClCompile Include="Include\src\RenderViewport.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Include\src\SceneElementsPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -51,13 +57,22 @@
     <QtMoc Include="Include\headers\RayTracingInAWeekWithUI.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="SceneElementsPanel.h">
+    <QtMoc Include="Include\headers\RenderViewport.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CameraParametersPanel.h">
+    <ClInclude Include="Include\headers\CameraParametersPanel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Include\headers\SceneElementsPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Include\shaders\PixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Include\shaders\VertexShader.hlsl" />
   </ItemGroup>
 </Project>
