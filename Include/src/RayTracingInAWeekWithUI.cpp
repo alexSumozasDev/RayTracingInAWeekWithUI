@@ -2,6 +2,7 @@
 #include <QPainter>
 #include "CameraParametersPanel.h"
 #include "SceneElementsPanel.h"
+#include "RenderViewport.h"
 
 RayTracingInAWeekWithUI::RayTracingInAWeekWithUI(QWidget *parent) : QMainWindow(parent)
 {
@@ -19,7 +20,7 @@ RayTracingInAWeekWithUI::RayTracingInAWeekWithUI(QWidget *parent) : QMainWindow(
     CameraParametersPanel* menu = new CameraParametersPanel(this, cam_panel_pal);
 
 
-    QWidget* rightWidget = new QWidget;
+    QWidget* rightWidget = new RenderViewport();
     rightWidget->setStyleSheet("background-color: lightgray");
 
     topLayout->addWidget(menu, 25);
@@ -31,7 +32,7 @@ RayTracingInAWeekWithUI::RayTracingInAWeekWithUI(QWidget *parent) : QMainWindow(
 
     QHBoxLayout* bottomLayout = new QHBoxLayout(bottomRow);
     bottomLayout->addStretch(1);
-    bottomLayout->addWidget(new SceneElementsPanel(this));
+    //bottomLayout->addWidget(new SceneElementsPanel(this));
     bottomLayout->addStretch(1);
 
 
