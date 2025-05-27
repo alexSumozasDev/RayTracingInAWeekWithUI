@@ -3,8 +3,13 @@
 #include <QDebug>
 #include <windows.h>
 #include <dxgi.h>
-#include <DirectXMath.h>
+#include <d3d11.h>
+#include <wrl.h>
 #include <d3dcompiler.h>
+
+#pragma comment(lib, "d3dcompiler.lib")
+
+using Microsoft::WRL::ComPtr;
 
 RenderViewport::RenderViewport(QWidget* parent) : QWidget(parent)
 {
@@ -14,9 +19,20 @@ RenderViewport::RenderViewport(QWidget* parent) : QWidget(parent)
 
     initD3D();
 
-    renderTimer = new QTimer(this);
-    connect(renderTimer, &QTimer::timeout, this, &RenderViewport::render);
-    renderTimer->start(16);
+    vp_context->OMSetRenderTargets(1, vp_renderTargetView.GetAddressOf(), nullptr);
+
+    D3D11_VIEWPORT vp = {};
+    vp.Width = (FLOAT)width();
+    vp.Height = (FLOAT)height();
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+    vp_context->RSSetViewports(1, &vp);
+
+    render_timer = new QTimer(this);
+    connect(render_timer, &QTimer::timeout, this, &RenderViewport::render);
+    render_timer->start(16);
 
 }
 
@@ -25,170 +41,203 @@ RenderViewport::~RenderViewport()
     cleanup();
 }
 
-void RenderViewport::showEvent(QShowEvent* event)
-{
-    QWidget::showEvent(event);
-
-}
-
 void RenderViewport::resizeEvent(QResizeEvent* event)
 {
-    QWidget::resizeEvent(event);
-    if (swapChain)
+    if (vp_swap_chain)
     {
-        renderTargetView.Reset();
-        swapChain->ResizeBuffers(0, width(), height(), DXGI_FORMAT_UNKNOWN, 0);
-        Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer;
-        swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
-        device->CreateRenderTargetView(backBuffer.Get(), nullptr, &renderTargetView);
+        vp_renderTargetView.Reset();
+
+        HRESULT hr = vp_swap_chain->ResizeBuffers(
+            0,
+            width(),   
+            height(),  
+            DXGI_FORMAT_UNKNOWN,
+            0);
+
+        if (FAILED(hr)) {
+            qDebug() << "Failed to resize swap chain buffers";
+            return;
+        }
+
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> back_buffer;
+        hr = vp_swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
+        if (FAILED(hr)) return;
+
+        hr = vp_device->CreateRenderTargetView(back_buffer.Get(), nullptr, &vp_renderTargetView);
+        if (FAILED(hr)) return;
+
+        vp_context->OMSetRenderTargets(1, vp_renderTargetView.GetAddressOf(), nullptr);
+
+        D3D11_VIEWPORT vp = {};
+        vp.Width = (FLOAT)width();
+        vp.Height = (FLOAT)height();
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        vp.TopLeftX = 0;
+        vp.TopLeftY = 0;
+        vp_context->RSSetViewports(1, &vp);
+
+
+
     }
-    render();
 }
 
-void RenderViewport::paintEvent(QPaintEvent* event)
+void RenderViewport::paintEvent(QPaintEvent*)
 {
-    QWidget::paintEvent(event);
     render();
 }
 
 void RenderViewport::initD3D()
 {
-    if (device)
-        return;
-
-    DXGI_SWAP_CHAIN_DESC scd = {};
-    scd.BufferCount = 1;
-    scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    scd.OutputWindow = reinterpret_cast<HWND>(winId());
-    scd.SampleDesc.Count = 1;
-    scd.Windowed = TRUE;
-    scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    D3D11CreateDeviceAndSwapChain(
-        nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
-        nullptr, 0, D3D11_SDK_VERSION, &scd,
-        &swapChain, &device, nullptr, &context);
-
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer;
-    swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
-    device->CreateRenderTargetView(backBuffer.Get(), nullptr, &renderTargetView);
-
-    D3D11_BUFFER_DESC vbd = {};
-    vbd.Usage = D3D11_USAGE_DEFAULT;
-    vbd.ByteWidth = sizeof(Vertex) * sphereVertices.size();
-    vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA vinitData = { sphereVertices.data() };
-
-    device->CreateBuffer(&vbd, &vinitData, &vertexBuffer);
-
-    D3D11_BUFFER_DESC ibd = {};
-    ibd.Usage = D3D11_USAGE_DEFAULT;
-    ibd.ByteWidth = sizeof(UINT) * sphereIndices.size();
-    ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    D3D11_SUBRESOURCE_DATA iinitData = { sphereIndices.data() };
-
-    device->CreateBuffer(&ibd, &iinitData, &indexBuffer);
-
-    D3D11_RASTERIZER_DESC wireDesc = {};
-    wireDesc.FillMode = D3D11_FILL_WIREFRAME;
-    wireDesc.CullMode = D3D11_CULL_NONE;
-    wireDesc.DepthClipEnable = true;
-
-    Microsoft::WRL::ComPtr<ID3D11RasterizerState> wireframeRS;
-    device->CreateRasterizerState(&wireDesc, &wireframeRS);
-
-    context->RSSetState(wireframeRS.Get());
+    DXGI_SWAP_CHAIN_DESC desc_swapchain = {};
 
 
 
-    generateWireSphere(10.0f, 20, 20);
+    desc_swapchain.BufferDesc.Width = width();
+    desc_swapchain.BufferDesc.Height = height(); 
+    desc_swapchain.BufferDesc.RefreshRate.Numerator = 60;
+    desc_swapchain.BufferDesc.RefreshRate.Denominator = 1;
+    desc_swapchain.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc_swapchain.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    desc_swapchain.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+    desc_swapchain.SampleDesc.Count = 1;
+    desc_swapchain.SampleDesc.Quality = 0;
+    desc_swapchain.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc_swapchain.BufferCount = 1;
+    desc_swapchain.OutputWindow = reinterpret_cast<HWND>(winId());
+    desc_swapchain.Windowed = TRUE;
+    desc_swapchain.SwapEffect = DXGI_SWAP_EFFECT_DISCARD; 
+    desc_swapchain.Flags = 0;
 
-    Microsoft::WRL::ComPtr<ID3DBlob> vsBlob, psBlob;
+    HWND hwnd = reinterpret_cast<HWND>(winId());
+    qDebug() << "HWND:" << hwnd;
+    if (!IsWindow(hwnd)) {
+        qDebug() << "Invalid window handle!";
+
+    }
+
+    HRESULT hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0, D3D11_SDK_VERSION, &desc_swapchain,
+        &vp_swap_chain, &vp_device, nullptr, &vp_context);
+
+    if (FAILED(hr)) {
+        qDebug() << "D3D11CreateDeviceAndSwapChain failed with HRESULT:" << QString::number(hr, 16);
+    }
 
 
-    D3DCompileFromFile(L"Include/shaders/VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vsBlob, nullptr);
-    device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vertexShader);
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> back_buffer;
+    vp_swap_chain->GetBuffer(0, IID_PPV_ARGS(&back_buffer));
 
-    D3DCompileFromFile(L"Include/shaders/PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &psBlob, nullptr);
-    device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &pixelShader);
-
-    context->VSSetShader(vertexShader.Get(), nullptr, 0);
-    context->PSSetShader(pixelShader.Get(), nullptr, 0);
-
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-          D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-
-    Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
-    device->CreateInputLayout(layout, 1, vsBlob->GetBufferPointer(),
-        vsBlob->GetBufferSize(), &inputLayout);
-    context->IASetInputLayout(inputLayout.Get());
+    vp_device->CreateRenderTargetView(back_buffer.Get(), nullptr, &vp_renderTargetView);
 
 
+    Vertex vertices_traingle[] = { {{0.0f, 0.5f, 0.0f}}, {{0.5,-0.5, 0.0}}, {{ -0.5,-0.5,0.0}} };
+
+    D3D11_SUBRESOURCE_DATA t_ver = {};
+    t_ver.pSysMem = vertices_traingle;
+
+    D3D11_BUFFER_DESC b_dc = {};
+
+    b_dc.ByteWidth = sizeof(Vertex) * 3;
+    b_dc.Usage = D3D11_USAGE_DEFAULT;
+
+
+    //vp_vertex_buffer = nullptr;
+    hr = vp_device->CreateBuffer(&b_dc, &t_ver, &vp_vertex_buffer);
+
+    if (hr != S_OK) {
+        qDebug() << "Error al inicializar el buffer ";
+    }
+    compileShaders();
 
 }
 
+void RenderViewport::compileShaders() {
+
+    ID3DBlob* vs_blob = nullptr;
+    ID3DBlob* ps_blob = nullptr;
+    ID3DBlob* blob_error = nullptr;
+
+    HRESULT hr = D3DCompileFromFile(L"Include\\shaders\\VertexShader.hlsl", nullptr, nullptr, "main", "vs_5_0", 0, 0, &vs_blob, &blob_error);
+
+    if (hr != S_OK) {
+        if (blob_error) {
+            const char* errorMsg = reinterpret_cast<const char*>(blob_error->GetBufferPointer());
+            qDebug() << "Shader compile error:" << QString::fromLocal8Bit(errorMsg);
+            blob_error->Release();
+            blob_error = nullptr;
+        }
+        else {
+            qDebug() << "Vertex Shader compile failed, but no error message.";
+        }
+    }
+
+    hr = D3DCompileFromFile(L"Include\\shaders\\PixelShader.hlsl", nullptr, nullptr, "main", "ps_5_0", 0, 0, &ps_blob, &blob_error);
+
+    if (hr != S_OK) {
+        if (blob_error) {
+            const char* errorMsg = reinterpret_cast<const char*>(blob_error->GetBufferPointer());
+            qDebug() << "Shader compile error:" << QString::fromLocal8Bit(errorMsg);
+            blob_error->Release();
+            blob_error = nullptr;
+        }
+        else {
+            qDebug() << "Pixel Shader compile failed, but no error message.";
+        }
+    }
+
+    hr = vp_device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), nullptr, &vp_vertexShader);
+
+    if (hr != S_OK) {
+        qDebug() << "Error al crear el vertex Shader ";
+    }
+    hr = vp_device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), nullptr, &vp_pixelShader);
+
+    if (hr != S_OK) {
+        qDebug() << "Error al crear el Pixel Shader ";
+    }
+
+    D3D11_INPUT_ELEMENT_DESC in_dsc[] = {"position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
+
+    hr = vp_device->CreateInputLayout(in_dsc, 1, vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), &vp_input_lay);
+    
+    if (hr != S_OK) {
+        qDebug() << "Error al crear el Pixel Shader ";
+    }
+
+    vp_context->IASetInputLayout(vp_input_lay.Get());
+
+    vp_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+}
+
+
 void RenderViewport::render()
 {
-    if (!context || !renderTargetView) return;
-
-    float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f }; 
-
+    FLOAT col[] = {0.5,0.2,0.1,1};
+    vp_context->ClearRenderTargetView(vp_renderTargetView.Get(), col);
     UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-    context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-    context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST); 
+    vp_context->IASetVertexBuffers(0, 1, &vp_vertex_buffer, &stride, 0);
 
-    context->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), nullptr);
-    context->ClearRenderTargetView(renderTargetView.Get(), clearColor);
+    vp_context->VSSetShader(vp_vertexShader.Get(), nullptr, 0);
+    vp_context->PSSetShader(vp_pixelShader.Get(), nullptr, 0);
 
-    context->DrawIndexed(sphereIndices.size(), 0, 0);
-    swapChain->Present(1, 0);
+    vp_context->Draw(3, 0);
+    vp_swap_chain->Present(1, 0);
 }
 
 void RenderViewport::cleanup()
 {
-    renderTargetView.Reset();
-    swapChain.Reset();
-    context.Reset();
-    device.Reset();
+    vp_renderTargetView.Reset();
+    vp_vertex_buffer.Reset();
+    vp_pixelShader.Reset();
+    vp_vertexShader.Reset();
+    vp_swap_chain.Reset();
+    vp_context.Reset();
+    vp_device.Reset();
 }
 
-void RenderViewport::generateWireSphere(float radius, int slices, int stacks)
-{
-    sphereVertices.clear();
-    sphereIndices.clear();
+void RenderViewport::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
 
-    for (int i = 0; i <= stacks; ++i)
-    {
-        float phi = DirectX::XM_PI * i / stacks;
-        for (int j = 0; j <= slices; ++j)
-        {
-            float theta = DirectX::XM_2PI * j / slices;
-            float x = radius * sinf(phi) * cosf(theta);
-            float y = radius * cosf(phi);
-            float z = radius * sinf(phi) * sinf(theta);
 
-            sphereVertices.push_back({ x, y, z });
-        }
-    }
-
-    for (int i = 0; i < stacks; ++i)
-    {
-        for (int j = 0; j < slices; ++j)
-        {
-            int current = i * (slices + 1) + j;
-            int next = current + slices + 1;
-
-            sphereIndices.push_back(current);
-            sphereIndices.push_back(current + 1);
-
-            sphereIndices.push_back(current);
-            sphereIndices.push_back(next);
-        }
-    }
 }
