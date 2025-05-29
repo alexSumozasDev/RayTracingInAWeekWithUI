@@ -6,6 +6,7 @@
 #include <d3d11.h>
 #include <wrl.h>
 #include <d3dcompiler.h>
+#include <DirectXMath.h>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -130,23 +131,24 @@ void RenderViewport::initD3D()
     vp_device->CreateRenderTargetView(back_buffer.Get(), nullptr, &vp_renderTargetView);
 
 
-    Vertex vertices_traingle[] = { {{0.0f, 0.5f, 0.0f}}, {{0.5,-0.5, 0.0}}, {{ -0.5,-0.5,0.0}} };
+    //Vertex vertices_traingle[] = { {{0.0f, 0.5f, 0.0f}}, {{0.5,-0.5, 0.0}}, {{ -0.5,-0.5,0.0}}, {{0.0f, 0.5f, 0.0f}} };
+    auto vertices = generateWireframeSphere(0.5f, 20, 20);
 
-    D3D11_SUBRESOURCE_DATA t_ver = {};
-    t_ver.pSysMem = vertices_traingle;
+    D3D11_SUBRESOURCE_DATA vertexData = {};
+    vertexData.pSysMem = vertices.data();
 
-    D3D11_BUFFER_DESC b_dc = {};
+    D3D11_BUFFER_DESC bufferDesc = {};
+    bufferDesc.ByteWidth = sizeof(Vertex) * static_cast<UINT>(vertices.size());
+    bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+    bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
-    b_dc.ByteWidth = sizeof(Vertex) * 3;
-    b_dc.Usage = D3D11_USAGE_DEFAULT;
-
-
-    //vp_vertex_buffer = nullptr;
-    hr = vp_device->CreateBuffer(&b_dc, &t_ver, &vp_vertex_buffer);
-
-    if (hr != S_OK) {
-        qDebug() << "Error al inicializar el buffer ";
+    hr = vp_device->CreateBuffer(&bufferDesc, &vertexData, &vp_vertex_buffer);
+    if (FAILED(hr)) {
+        qDebug() << "Failed to create sphere vertex buffer.";
     }
+    sphere_vertex_count = static_cast<UINT>(vertices.size());
+
+
     compileShaders();
 
 }
@@ -206,7 +208,7 @@ void RenderViewport::compileShaders() {
 
     vp_context->IASetInputLayout(vp_input_lay.Get());
 
-    vp_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    vp_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
 }
 
@@ -216,19 +218,25 @@ void RenderViewport::render()
     FLOAT col[] = {0.5,0.2,0.1,1};
     vp_context->ClearRenderTargetView(vp_renderTargetView.Get(), col);
     UINT stride = sizeof(Vertex);
-    vp_context->IASetVertexBuffers(0, 1, &vp_vertex_buffer, &stride, 0);
+    UINT offset = 0;
+    if (!vp_vertex_buffer) {
+        qDebug() << "Vertex buffer is null in render()!";
+        return; 
+    }
+
+    vp_context->IASetVertexBuffers(0, 1, vp_vertex_buffer.GetAddressOf(), &stride, &offset);
 
     vp_context->VSSetShader(vp_vertexShader.Get(), nullptr, 0);
     vp_context->PSSetShader(vp_pixelShader.Get(), nullptr, 0);
 
-    vp_context->Draw(3, 0);
+    vp_context->Draw(sphere_vertex_count, 0);
     vp_swap_chain->Present(1, 0);
 }
 
 void RenderViewport::cleanup()
 {
     vp_renderTargetView.Reset();
-    vp_vertex_buffer.Reset();
+    //vp_vertex_buffer.Reset();
     vp_pixelShader.Reset();
     vp_vertexShader.Reset();
     vp_swap_chain.Reset();
@@ -240,4 +248,42 @@ void RenderViewport::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
 
 
+}
+
+
+
+std::vector<Vertex> RenderViewport::generateWireframeSphere(float radius, int slices, int stacks) {
+    std::vector<Vertex> vertices;
+
+    for (int i = 0; i <= stacks; ++i) {
+        float lat = DirectX::XM_PI * i / stacks;
+        float y = cos(lat);
+        float r = sin(lat);
+        for (int j = 0; j < slices; ++j) {
+            float lon1 = 2 * DirectX::XM_PI * j / slices;
+            float lon2 = 2 * DirectX::XM_PI * (j + 1) / slices;
+
+            Vertex v1 = { {radius * r * cos(lon1), radius * y, radius * r * sin(lon1)} };
+            Vertex v2 = { {radius * r * cos(lon2), radius * y, radius * r * sin(lon2)} };
+
+            vertices.push_back(v1); 
+            vertices.push_back(v2);
+        }
+    }
+
+    for (int j = 0; j < slices; ++j) {
+        float lon = 2 * DirectX::XM_PI * j / slices;
+        for (int i = 0; i < stacks; ++i) {
+            float lat1 = DirectX::XM_PI * i / stacks;
+            float lat2 = DirectX::XM_PI * (i + 1) / stacks;
+
+            Vertex v1 = { {radius * sin(lat1) * cos(lon), radius * cos(lat1), radius * sin(lat1) * sin(lon)} };
+            Vertex v2 = { {radius * sin(lat2) * cos(lon), radius * cos(lat2), radius * sin(lat2) * sin(lon)} };
+
+            vertices.push_back(v1); 
+            vertices.push_back(v2);
+        }
+    }
+
+    return vertices;
 }

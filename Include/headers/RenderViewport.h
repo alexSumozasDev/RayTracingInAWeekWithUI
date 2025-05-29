@@ -5,6 +5,8 @@
 #include <wrl/client.h>
 #include <DirectXMath.h>
 #include <qtimer.h>
+#include <vector>
+#include <cmath>
 
 struct Vertex {
     DirectX::XMFLOAT3 position;
@@ -35,6 +37,9 @@ private:
     void compileShaders();
     void render();
     void cleanup();
+    std::vector<Vertex> generateWireframeSphere(float radius, int slices, int stacks);
+
+    UINT sphere_vertex_count = 0;
 
     Microsoft::WRL::ComPtr<ID3D11Device> vp_device;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> vp_context;
