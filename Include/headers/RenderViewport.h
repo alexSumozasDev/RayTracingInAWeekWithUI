@@ -7,6 +7,7 @@
 #include <qtimer.h>
 #include <vector>
 #include <cmath>
+#include "tiny_obj_loader.h"
 
 struct Vertex {
     DirectX::XMFLOAT3 position;

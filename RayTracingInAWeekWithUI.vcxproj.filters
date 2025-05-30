@@ -52,6 +52,9 @@
     <ClCompile Include="Include\src\SceneElementsPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Include\src\SceneElements.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Include\headers\RayTracingInAWeekWithUI.h">
@@ -66,6 +69,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Include\headers\SceneElementsPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\external\tiny_obj_loader.h">
+      <Filter>ExternalLibs</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\headers\SceneElements.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

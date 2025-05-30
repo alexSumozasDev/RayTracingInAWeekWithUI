@@ -77,7 +77,7 @@
       <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\src;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\headers;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Include\external;$(ProjectDir)Include\src;$(ProjectDir)Include\headers;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\external;C:\Users\CV\Repositorios\Cplusplus\Others\toup\RayTracingInAWeekWithUI\Include\shaders;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
@@ -117,14 +117,17 @@
     <ClCompile Include="Include\src\main.cpp" />
     <ClCompile Include="Include\src\RayTracingInAWeekWithUI.cpp" />
     <ClCompile Include="Include\src\RenderViewport.cpp" />
+    <ClCompile Include="Include\src\SceneElements.cpp" />
     <ClCompile Include="Include\src\SceneElementsPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Include\headers\RayTracingInAWeekWithUI.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Include\external\tiny_obj_loader.h" />
     <ClInclude Include="Include\headers\CameraParametersPanel.h" />
     <QtMoc Include="Include\headers\RenderViewport.h" />
+    <ClInclude Include="Include\headers\SceneElements.h" />
     <ClInclude Include="Include\headers\SceneElementsPanel.h" />
   </ItemGroup>
   <ItemGroup>

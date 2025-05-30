@@ -8,6 +8,7 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 
+
 #pragma comment(lib, "d3dcompiler.lib")
 
 using Microsoft::WRL::ComPtr;
